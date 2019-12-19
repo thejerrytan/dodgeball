@@ -24,13 +24,11 @@ export class BallManager {
             return
         }
         
-        print("Added tool!");
         this.connections.push(child.Activated.Connect(() => this.onToolActivate(child)))
         // this.connections.push(child.Deactivated.Connect(() => this.onToolDeactivate(child)))
     }
     
     private onToolActivate(tool: Tool) {
-        print("tool activated")
         const shootBallEvent = replicatedStorage.WaitForChild("ShootBallEvent")
 
         if (!shootBallEvent.IsA("RemoteEvent")){

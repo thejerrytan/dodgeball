@@ -1,14 +1,60 @@
 import { Workspace, RunService, PhysicsService, Players } from "@rbxts/services"
 import { compare, decelerate } from "shared/module"
-import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR } from "shared/constants"
+import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME } from "shared/constants"
 
-const replicatedStorage = game.GetService("ReplicatedStorage")
-const shootBallEvent = new Instance("RemoteEvent", replicatedStorage)
-
+// Global data structures
 const freeBalls:BasePart[] = []
 
+// Run everything here once when server starts
+function init() {
+    // Handle collision groups
+    const projectilesCollisionGroupId = PhysicsService.CreateCollisionGroup(PROJECTILES_COLLISION_GROUP_NAME)
+    const playersCollisionGroupId = PhysicsService.CreateCollisionGroup(PLAYERS_COLLISION_GROUP_NAME)
+    PhysicsService.CollisionGroupSetCollidable(PLAYERS_COLLISION_GROUP_NAME, PROJECTILES_COLLISION_GROUP_NAME, false)
+    
+    // Connect events
+    const shootBallEvent = new Instance("RemoteEvent", game.GetService("ReplicatedStorage"))
+    shootBallEvent.Name = "ShootBallEvent"
+    print(shootBallEvent.OnServerEvent.Connect(onShootBallEventFired))
+    Players.PlayerAdded.Connect(player => {
+        player.CharacterAdded.Connect(char => {
+            const onChildAdded = (child: Instance) => {
+                if (!child.IsA("BasePart")){
+                    return
+                }
+                PhysicsService.SetPartCollisionGroup(child, PLAYERS_COLLISION_GROUP_NAME)
+            }
+            char.ChildAdded.Connect(onChildAdded)
+            char.GetChildren().forEach(onChildAdded)
+        })
+    })
 
-shootBallEvent.Name = "ShootBallEvent"
+    RunService.Heartbeat.Connect((step: number) => {
+        // Wrap a tool around balls that have stopped moving
+        const ballsToRemove: number[] = []
+        freeBalls.forEach((ball, idx) => {
+            if (compare(ball.Velocity, VELOCITY_DIFF)) {
+                const tool = new Instance("Tool")
+                ball.Parent = tool
+                tool.Parent = Workspace
+                ball.Velocity = new Vector3(0,0,0)
+                ball.RotVelocity = new Vector3(0,0,0)
+                ballsToRemove.insert(0, idx)
+            }
+        })
+        ballsToRemove.forEach(idx => {
+            freeBalls.remove(idx)
+        })
+        
+    })
+    
+    RunService.Stepped.Connect((step: number) =>{
+        // attenuate the velocity of the balls over time to simulate air resistance
+        freeBalls.forEach(ball => {
+            ball.Velocity = decelerate(ball.Velocity, AIR_RESISTANCE_FACTOR)
+        })
+    })
+}
 
 function onShootBallEventFired(player: Player, ball: unknown, direction: unknown){
     print(`${player.Name} just shot a ball`)
@@ -20,73 +66,52 @@ function onShootBallEventFired(player: Player, ball: unknown, direction: unknown
     if (!typeIs(direction, "Vector3")){
         return
     }
-
+    
     const handle = ball.FindFirstChild("Handle")
-
+    
     if (handle === undefined){
         return
     }
-
+    
     if (!handle.IsA("Part")){
         return 
     }
+    
     const newHandle = handle.Clone()
+    PhysicsService.SetPartCollisionGroup(newHandle, PROJECTILES_COLLISION_GROUP_NAME)
+    // ball.Destroy()
 
-    ball.Destroy()
+    // Apply anti-gravity
+    applyAntiGravityToPart(newHandle)
+
     newHandle.Parent = Workspace
-    // newHandle.CanCollide = true
+    newHandle.CanCollide = true
     newHandle.Velocity = direction.mul(100)
-    PhysicsService.SetPartCollisionGroup(newHandle, projectilesCollisionGroupName)
+    newHandle.Touched.Connect(part => onTouchPlayer(part, player))
     freeBalls.push(newHandle)
-    print(newHandle.Velocity)
 }
 
-RunService.Heartbeat.Connect((step: number) => {
-    // print(step)
-    // Wrap a tool around balls that have stopped moving
-    const ballsToRemove: number[] = []
-    freeBalls.forEach((ball, idx) => {
-        if (compare(ball.Velocity, VELOCITY_DIFF)) {
-            const tool = new Instance("Tool")
-            ball.Parent = tool
-            tool.Parent = Workspace
-            ball.Velocity = new Vector3(0,0,0)
-            ball.RotVelocity = new Vector3(0,0,0)
-            ballsToRemove.insert(0, idx)
-            print("new Tool created")
+function applyAntiGravityToPart(part: BasePart) {
+    const counterGravity = new Instance("VectorForce", Workspace)
+    counterGravity.Attachment0 = new Instance("Attachment", part)
+    counterGravity.Force = new Vector3(0, part.GetMass() * Workspace.Gravity, 0)
+    counterGravity.ApplyAtCenterOfMass = true
+    counterGravity.RelativeTo = Enum.ActuatorRelativeTo.World
+}
+
+// Kills a player if ball touches player other than yourself
+function onTouchPlayer(part: BasePart, localPlayer: Player) {
+    if (part.Parent!.IsA("Model") && part.Parent!.FindFirstChildOfClass("Humanoid") !== undefined){
+        const associatedPlayer = Players.GetPlayerFromCharacter(part.Parent!)
+        if (associatedPlayer === localPlayer) {
+            return
         }
-    })
-    ballsToRemove.forEach(idx => {
-        freeBalls.remove(idx)
-    })
-    
-})
+        part.Parent.FindFirstChildOfClass("Humanoid")!.Health = 0
+    }
+}
 
-RunService.Stepped.Connect((step: number) =>{
-    // attenuate the velocity of the balls over time to simulate air resistance
-    freeBalls.forEach(ball => {
-        ball.Velocity = decelerate(ball.Velocity, AIR_RESISTANCE_FACTOR)
-    })
-})
+// init server script
+init()
 
-const projectilesCollisionGroupName = "Projectiles"
-const playersCollisionGroupName = "Players"
-const projectilesCollisionGroupId = PhysicsService.CreateCollisionGroup("Projectiles")
-const playersCollisionGroupId = PhysicsService.CreateCollisionGroup("Players")
-PhysicsService.CollisionGroupSetCollidable(playersCollisionGroupName, projectilesCollisionGroupName, false)
-
-
-shootBallEvent.OnServerEvent.Connect(onShootBallEventFired)
-
-Players.PlayerAdded.Connect(player => {
-    player.CharacterAdded.Connect(char => {
-        char.ChildAdded.Connect(child => {
-            if (!child.IsA("BasePart")){
-                return
-            }
-            PhysicsService.SetPartCollisionGroup(child, playersCollisionGroupName)
-        })
-    })
-})
 
 export {}
