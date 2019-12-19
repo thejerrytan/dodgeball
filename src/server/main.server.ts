@@ -1,6 +1,6 @@
 import { Workspace, RunService, PhysicsService, Players } from "@rbxts/services"
 import { compare, decelerate, calculateNewSpeed } from "shared/module"
-import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME, PLAYER_THROW_BALL_VELOCITY_FACTOR } from "shared/constants"
+import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME, PLAYER_THROW_BALL_VELOCITY_FACTOR, PROJECTILE_IDLE_VELOCITY } from "shared/constants"
 
 // Global data structures
 const freeBalls:BasePart[] = []
@@ -27,6 +27,7 @@ function init() {
                 PhysicsService.SetPartCollisionGroup(child, PLAYERS_COLLISION_GROUP_NAME)
             }
             char.ChildAdded.Connect(onChildAdded)
+            // To handle HumanoidRootPart
             char.GetChildren().forEach(onChildAdded)
         })
     })
@@ -39,7 +40,7 @@ function init() {
                 const tool = new Instance("Tool")
                 ball.Parent = tool
                 tool.Parent = Workspace
-                ball.Velocity = new Vector3(0,0,0)
+                ball.Velocity = new Vector3(0,-PROJECTILE_IDLE_VELOCITY,0)
                 ball.RotVelocity = new Vector3(0,0,0)
                 ball.Massless = true
                 const connection = freeBallTouchConnections.get(ball)
