@@ -1,9 +1,11 @@
 import { Workspace, RunService, PhysicsService, Players } from "@rbxts/services"
-import { compare, decelerate } from "shared/module"
-import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME } from "shared/constants"
+import { compare, decelerate, calculateNewSpeed } from "shared/module"
+import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME, PLAYER_THROW_BALL_VELOCITY_FACTOR } from "shared/constants"
 
 // Global data structures
 const freeBalls:BasePart[] = []
+
+const freeBallTouchConnections = new Map<BasePart, RBXScriptConnection>();
 
 // Run everything here once when server starts
 function init() {
@@ -15,7 +17,7 @@ function init() {
     // Connect events
     const shootBallEvent = new Instance("RemoteEvent", game.GetService("ReplicatedStorage"))
     shootBallEvent.Name = "ShootBallEvent"
-    print(shootBallEvent.OnServerEvent.Connect(onShootBallEventFired))
+    shootBallEvent.OnServerEvent.Connect(onShootBallEventFired)
     Players.PlayerAdded.Connect(player => {
         player.CharacterAdded.Connect(char => {
             const onChildAdded = (child: Instance) => {
@@ -39,6 +41,11 @@ function init() {
                 tool.Parent = Workspace
                 ball.Velocity = new Vector3(0,0,0)
                 ball.RotVelocity = new Vector3(0,0,0)
+                ball.Massless = true
+                const connection = freeBallTouchConnections.get(ball)
+                if (connection !== undefined){
+                    connection.Disconnect()
+                }
                 ballsToRemove.insert(0, idx)
             }
         })
@@ -56,7 +63,7 @@ function init() {
     })
 }
 
-function onShootBallEventFired(player: Player, ball: unknown, direction: unknown){
+function onShootBallEventFired(player: Player, ball: unknown, direction: unknown, power: unknown){
     print(`${player.Name} just shot a ball`)
     
     if (!typeIs(ball, "Instance") || !ball.IsA("Tool")){
@@ -64,6 +71,10 @@ function onShootBallEventFired(player: Player, ball: unknown, direction: unknown
     }
 
     if (!typeIs(direction, "Vector3")){
+        return
+    }
+
+    if (!typeIs(power, "number")){
         return
     }
     
@@ -78,16 +89,20 @@ function onShootBallEventFired(player: Player, ball: unknown, direction: unknown
     }
     
     const newHandle = handle.Clone()
+    newHandle.Massless = false
     PhysicsService.SetPartCollisionGroup(newHandle, PROJECTILES_COLLISION_GROUP_NAME)
-    // ball.Destroy()
+    ball.Destroy()
 
     // Apply anti-gravity
     applyAntiGravityToPart(newHandle)
 
     newHandle.Parent = Workspace
     newHandle.CanCollide = true
-    newHandle.Velocity = direction.mul(100)
-    newHandle.Touched.Connect(part => onTouchPlayer(part, player))
+    const newSpeed = calculateNewSpeed(power)
+    print("POWER: ", power, "VELOCITY: ", newSpeed)
+    newHandle.Velocity = direction.mul(newSpeed)
+    const connection = newHandle.Touched.Connect(part => onTouchPlayer(part, player))
+    freeBallTouchConnections.set(newHandle, connection)
     freeBalls.push(newHandle)
 }
 
