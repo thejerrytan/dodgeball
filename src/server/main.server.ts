@@ -1,11 +1,15 @@
 import { Workspace, RunService, PhysicsService, Players } from "@rbxts/services"
-import { compare, decelerate, calculateNewSpeed } from "shared/module"
-import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME, PLAYER_THROW_BALL_VELOCITY_FACTOR, PROJECTILE_IDLE_VELOCITY } from "shared/constants"
+import { compare, decelerate, calculateNewSpeed, assertFindFirstNamedChildWhichIsA } from "shared/module"
+import { VELOCITY_DIFF, AIR_RESISTANCE_FACTOR, PROJECTILES_COLLISION_GROUP_NAME, PLAYERS_COLLISION_GROUP_NAME, PLAYER_THROW_BALL_VELOCITY_FACTOR, PROJECTILE_IDLE_VELOCITY, LEADERBOARD_KILL_NAME, LEADERBOARD_DEATH_NAME } from "shared/constants"
+import { PlayersController } from "./PlayersController";
 
 // Global data structures
 const freeBalls:BasePart[] = []
 
 const freeBallTouchConnections = new Map<BasePart, RBXScriptConnection>();
+
+// Init controllers
+const playersController = new PlayersController()
 
 // Run everything here once when server starts
 function init() {
@@ -122,7 +126,14 @@ function onTouchPlayer(part: BasePart, localPlayer: Player) {
         if (associatedPlayer === localPlayer) {
             return
         }
-        part.Parent.FindFirstChildOfClass("Humanoid")!.Health = 0
+
+        const humanoid = part.Parent.FindFirstChildOfClass("Humanoid")
+        if (humanoid === undefined) { return }
+        if (humanoid.Health > 0) {
+            humanoid.Health = 0
+            playersController.updatePlayerStats(localPlayer.Name, LEADERBOARD_KILL_NAME, "IntValue", 1)
+            playersController.updatePlayerStats(part.Parent!.Name, LEADERBOARD_DEATH_NAME, "IntValue", 1)
+        }
     }
 }
 

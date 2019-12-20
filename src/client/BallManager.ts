@@ -1,4 +1,4 @@
-import { Players, Workspace } from "@rbxts/services";
+import { Players, Workspace, RunService } from "@rbxts/services";
 import { PLAYER_MAX_POWER_LEVEL, PLAYER_MAX_POWER_NUM_MILLISECONDS, PLAYER_MIN_POWER_NUM_MILLISECONDS } from "shared/constants";
 import { assertFindFirstNamedChildWhichIsA } from "shared/module";
 
@@ -8,7 +8,8 @@ export class BallManager {
     connections: RBXScriptConnection[]
     startTime: number
     isCharging: boolean
-    
+    count: number = 0
+
     constructor () {
         this.connections = []
         this.startTime = os.time()
@@ -19,6 +20,8 @@ export class BallManager {
         if (Players.LocalPlayer.Character !== undefined){
             this.onCharacterAdded(Players.LocalPlayer.Character)
         }
+
+        RunService.Heartbeat.Connect(step => this.onTick(step))
     }
     
     private onCharacterAdded (character:Model) {
@@ -66,6 +69,13 @@ export class BallManager {
         const timeElapsed = (tick() - this.startTime) * 1000 // milliseconds
         const power = math.min(math.max(PLAYER_MIN_POWER_NUM_MILLISECONDS, timeElapsed), PLAYER_MAX_POWER_NUM_MILLISECONDS) / PLAYER_MAX_POWER_NUM_MILLISECONDS * PLAYER_MAX_POWER_LEVEL
         return power
+    }
+
+    private onTick(step: number) {
+        this.count += 1
+        if (this.isCharging && (this.count % 30) === 0) {
+            print("Power level: ", this.getPowerLevel())
+        }
     }
 }
 

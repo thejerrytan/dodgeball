@@ -1,4 +1,4 @@
-import { Players, InsertService, UserInputService, RunService } from "@rbxts/services";
+import { Players, UserInputService, RunService } from "@rbxts/services";
 import { assertFindFirstNamedChildWhichIsA, waitForNamedChildWhichIsA } from "shared/module";
 
 export class PlayerController {
