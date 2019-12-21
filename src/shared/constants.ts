@@ -1,4 +1,4 @@
-export const VELOCITY_DIFF: number = 20
+export const VELOCITY_DIFF: number = 15
 export const AIR_RESISTANCE_FACTOR: number = 0.9999
 export const PROJECTILES_COLLISION_GROUP_NAME = "Projectiles"
 export const PLAYERS_COLLISION_GROUP_NAME = "Players"
@@ -22,3 +22,8 @@ export const LAUNCHER_VELOCTY = 200
 export const LEADERBOARD_KILL_NAME = "Kills"
 export const LEADERBOARD_DEATH_NAME = "Deaths"
 export const LEADERBOARD_SCORE_NAME = "Score"
+
+// Game settings
+export const GAME_MODE_ENABLE_WINNER_PENALTY = true
+export const GAME_MODE_IS_TEAM_DEATHMATCH = false
+export const GAME_MODE_IS_FFA = true

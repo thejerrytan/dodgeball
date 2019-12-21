@@ -1,6 +1,7 @@
 import { Players, Workspace, RunService } from "@rbxts/services";
 import { PLAYER_MAX_POWER_LEVEL, PLAYER_MAX_POWER_NUM_MILLISECONDS, PLAYER_MIN_POWER_NUM_MILLISECONDS } from "shared/constants";
-import { assertFindFirstNamedChildWhichIsA } from "shared/module";
+import { assertFindFirstNamedChildWhichIsA, waitForNamedChildWhichIsA } from "shared/module";
+import { PlayerGuiW } from "./PlayerGuiW";
 
 const replicatedStorage = game.GetService("ReplicatedStorage")
 
@@ -9,11 +10,13 @@ export class BallManager {
     startTime: number
     isCharging: boolean
     count: number = 0
+    playerGuiW: PlayerGuiW
 
-    constructor () {
+    constructor (playerGuiW: PlayerGuiW) {
         this.connections = []
         this.startTime = os.time()
         this.isCharging = false
+        this.playerGuiW = playerGuiW
         
         Players.LocalPlayer.CharacterAdded.Connect(character => this.onCharacterAdded(character))
         
@@ -32,9 +35,15 @@ export class BallManager {
         if (!child.IsA("Tool")){
             return
         }
-                
+        
+        // Modfiy physicsl properties
+        const handle = waitForNamedChildWhichIsA(child, "Handle", "Part")
+        handle.Color = new Color3(1, 0, 0)
+        
+        // Attach behaviors
         this.connections.push(child.Activated.Connect(() => this.onToolActivate(child)))
         this.connections.push(child.Deactivated.Connect(() => this.onToolDeactivate(child)))
+        print("Connected")
     }
     
     private onToolActivate(tool: Tool) {
@@ -55,6 +64,7 @@ export class BallManager {
         shootBallEvent.FireServer(tool, fireDirection, power)
 
         this.isCharging = false
+        this.playerGuiW.updatePowerBar(0)
         // tool.Parent = Workspace;
 
         // this.connections.forEach(connection => {
@@ -67,14 +77,19 @@ export class BallManager {
             return 0
         }
         const timeElapsed = (tick() - this.startTime) * 1000 // milliseconds
-        const power = math.min(math.max(PLAYER_MIN_POWER_NUM_MILLISECONDS, timeElapsed), PLAYER_MAX_POWER_NUM_MILLISECONDS) / PLAYER_MAX_POWER_NUM_MILLISECONDS * PLAYER_MAX_POWER_LEVEL
+        // const power = math.min(math.max(PLAYER_MIN_POWER_NUM_MILLISECONDS, timeElapsed), PLAYER_MAX_POWER_NUM_MILLISECONDS) / PLAYER_MAX_POWER_NUM_MILLISECONDS * PLAYER_MAX_POWER_LEVEL
+        const power = math.min(math.max(0, timeElapsed), PLAYER_MAX_POWER_NUM_MILLISECONDS) / PLAYER_MAX_POWER_NUM_MILLISECONDS * PLAYER_MAX_POWER_LEVEL
         return power
     }
 
     private onTick(step: number) {
         this.count += 1
-        if (this.isCharging && (this.count % 30) === 0) {
-            print("Power level: ", this.getPowerLevel())
+        if (this.isCharging) {
+            const powerLevel = this.getPowerLevel()
+            this.playerGuiW.updatePowerBar(powerLevel)
+            if (this.count % 30 === 0) {
+                print("Power level: ", powerLevel)
+            }
         }
     }
 }

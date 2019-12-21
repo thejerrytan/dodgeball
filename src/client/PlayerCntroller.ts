@@ -25,10 +25,11 @@ export class PlayerController {
     }
 
     private setCharacterMovementSpeed() {
+        if (this.humanoid === undefined) { return }
         if (UserInputService.IsKeyDown(Enum.KeyCode.LeftShift) && this.isCharacterMoving()) {
-            this.humanoid!.WalkSpeed = 30
+            this.humanoid.WalkSpeed = 30
         } else {
-            this.humanoid!.WalkSpeed = 16 // TODO: What is the roblox constant here for normal walkspeed?
+            this.humanoid.WalkSpeed = 16 // TODO: What is the roblox constant here for normal walkspeed?
         }
     }
 

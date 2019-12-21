@@ -47,6 +47,7 @@ function init() {
                 ball.Velocity = new Vector3(0,-PROJECTILE_IDLE_VELOCITY,0)
                 ball.RotVelocity = new Vector3(0,0,0)
                 ball.Massless = true
+                ball.Color = new Color3(0, 1, 0)
                 const connection = freeBallTouchConnections.get(ball)
                 if (connection !== undefined){
                     connection.Disconnect()
@@ -103,10 +104,11 @@ function onShootBallEventFired(player: Player, ball: unknown, direction: unknown
 
     newHandle.Parent = Workspace
     newHandle.CanCollide = true
+    newHandle.Color = new Color3(1, 0, 0)
     const newSpeed = calculateNewSpeed(power)
     print("POWER: ", power, "VELOCITY: ", newSpeed)
     newHandle.Velocity = direction.mul(newSpeed)
-    const connection = newHandle.Touched.Connect(part => onTouchPlayer(part, player))
+    const connection = newHandle.Touched.Connect(part => onTouchPlayer(part, player, newHandle))
     freeBallTouchConnections.set(newHandle, connection)
     freeBalls.push(newHandle)
 }
@@ -120,12 +122,19 @@ function applyAntiGravityToPart(part: BasePart) {
 }
 
 // Kills a player if ball touches player other than yourself
-function onTouchPlayer(part: BasePart, localPlayer: Player) {
+function onTouchPlayer(part: BasePart, localPlayer: Player, ball: BasePart) {
     if (part.Parent!.IsA("Model") && part.Parent!.FindFirstChildOfClass("Humanoid") !== undefined){
         const associatedPlayer = Players.GetPlayerFromCharacter(part.Parent!)
+        // No friendly fire
         if (associatedPlayer === localPlayer) {
             return
         }
+
+        // Calculate physics and rebounce off the target
+        // const norm = part.Orientation
+        // const newVelocity = calculateRebound(norm, ball.Velocity)
+        // ball.Velocity = newVelocity
+        
 
         const humanoid = part.Parent.FindFirstChildOfClass("Humanoid")
         if (humanoid === undefined) { return }
